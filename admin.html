@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAssist Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0F2040; --navy2: #1A3360; --gold: #C8993A; --gold2: #E8B84B;
+    --white: #ffffff; --cream: #f9f6f0; --gray100: #f4f2ee;
+    --gray200: #e8e4dc; --gray400: #a09888; --gray600: #5a5248; --dark: #2c2820;
+    --green: #1a6b45; --green-bg: #e8f5ee; --red: #991f1f; --red-bg: #fdeaea;
+    --amber: #7a4f00; --amber-bg: #fdf0d5; --blue: #0f4a8a; --blue-bg: #e6f1fb;
+  }
+  body { font-family: 'Segoe UI', Calibri, sans-serif; background: var(--gray100); color: var(--dark); min-height: 100vh; }
+
+  /* LOGIN */
+  #loginScreen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: var(--navy);
+  }
+  .login-card {
+    background: white; border-radius: 16px; padding: 2.5rem;
+    width: 360px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-card h1 { font-size: 1.8rem; color: var(--navy); font-family: Georgia, serif; margin-bottom: 4px; }
+  .login-card p { color: var(--gray400); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .login-card input {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--gray200);
+    border-radius: 6px; font-size: 0.95rem; margin-bottom: 1rem; font-family: inherit;
+  }
+  .login-card input:focus { outline: none; border-color: var(--navy); }
+  .btn-login {
+    width: 100%; background: var(--navy); color: white;
+    border: none; padding: 12px; border-radius: 6px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-login:hover { background: var(--navy2); }
+  .login-error { color: var(--red); font-size: 0.82rem; margin-top: 8px; }
+
+  /* LAYOUT */
+  #app { display: none; min-height: 100vh; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: 220px; background: var(--navy); padding: 0;
+    display: flex; flex-direction: column; z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .sidebar-logo h1 { font-size: 1.2rem; font-family: Georgia, serif; color: white; }
+  .sidebar-logo p { font-size: 0.7rem; color: var(--gold); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+  .sidebar-nav { flex: 1; padding: 12px 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; color: rgba(255,255,255,0.6);
+    font-size: 0.88rem; cursor: pointer;
+    transition: all 0.15s; border-left: 3px solid transparent;
+  }
+  .nav-item:hover { color: white; background: rgba(255,255,255,0.05); }
+  .nav-item.active { color: white; border-left-color: var(--gold); background: rgba(255,255,255,0.07); }
+  .nav-item svg { flex-shrink: 0; }
+  .sidebar-footer {
+    padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .btn-logout {
+    width: 100%; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+    padding: 8px; font-size: 0.82rem; cursor: pointer; font-family: inherit;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,0.1); color: white; }
+  .main { margin-left: 220px; padding: 28px 32px; }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .topbar h2 { font-size: 1.3rem; font-weight: 700; color: var(--navy); font-family: Georgia, serif; }
+  .topbar p { font-size: 0.82rem; color: var(--gray400); margin-top: 2px; }
+
+  /* STATS CARDS */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border-radius: 10px;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--gray200);
+  }
+  .stat-label { font-size: 0.72rem; color: var(--gray400); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .stat-num { font-size: 1.8rem; font-weight: 700; font-family: Georgia, serif; }
+  .stat-num.blue { color: var(--blue); }
+  .stat-num.gold { color: var(--gold); }
+  .stat-num.green { color: var(--green); }
+  .stat-num.red { color: var(--red); }
+  .stat-num.navy { color: var(--navy); }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .toolbar input {
+    flex: 1; min-width: 200px; padding: 8px 12px;
+    border: 1px solid var(--gray200); border-radius: 6px;
+    font-family: inherit; font-size: 0.88rem;
+  }
+  .toolbar input:focus { outline: none; border-color: var(--navy); }
+  .filter-btn {
+    padding: 8px 14px; border-radius: 6px; font-size: 0.82rem; cursor: pointer;
+    border: 1px solid var(--gray200); background: white; font-family: inherit;
+    color: var(--gray600); transition: all 0.15s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* ORDERS TABLE */
+  .orders-table-wrap { background: white; border-radius: 12px; border: 1px solid var(--gray200); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--gray100); padding: 11px 14px;
+    text-align: left; font-size: 0.75rem; font-weight: 600;
+    color: var(--gray400); text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--gray200);
+  }
+  tbody tr { border-bottom: 1px solid var(--gray100); transition: background 0.1s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--gray100); }
+  td { padding: 12px 14px; font-size: 0.875rem; vertical-align: middle; }
+  .order-id { font-family: monospace; font-size: 0.78rem; color: var(--navy); font-weight: 600; }
+
+  /* STATUS BADGES */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 600;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.new { background: var(--blue-bg); color: var(--blue); }
+  .badge.new .badge-dot { background: var(--blue); }
+  .badge.in_progress { background: var(--amber-bg); color: var(--amber); }
+  .badge.in_progress .badge-dot { background: var(--amber); }
+  .badge.completed { background: var(--green-bg); color: var(--green); }
+  .badge.completed .badge-dot { background: var(--green); }
+  .badge.cancelled { background: var(--red-bg); color: var(--red); }
+  .badge.cancelled .badge-dot { background: var(--red); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 14px; width: 580px; max-width: 95vw;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--gray200);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .modal-header h3 { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .modal-close {
+    background: none; border: none; font-size: 1.2rem; cursor: pointer;
+    color: var(--gray400); line-height: 1; padding: 0;
+  }
+  .modal-close:hover { color: var(--dark); }
+  .modal-body { padding: 20px 24px; }
+  .detail-row {
+    display: flex; gap: 8px; margin-bottom: 10px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--gray100);
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { font-size: 0.78rem; color: var(--gray400); min-width: 110px; padding-top: 1px; }
+  .detail-val { font-size: 0.875rem; color: var(--dark); flex: 1; line-height: 1.5; }
+  .modal-footer {
+    padding: 16px 24px; border-top: 1px solid var(--gray200);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .detail-section { margin-top: 16px; }
+  .detail-section label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .detail-section select, .detail-section textarea, .detail-section input {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--gray200);
+    border-radius: 6px; font-family: inherit; font-size: 0.875rem;
+  }
+  .detail-section select:focus, .detail-section textarea:focus, .detail-section input:focus { outline: none; border-color: var(--navy); }
+  .detail-section textarea { resize: vertical; min-height: 80px; }
+  .btn {
+    padding: 9px 18px; border-radius: 6px; font-size: 0.875rem;
+    font-weight: 500; cursor: pointer; font-family: inherit; border: none;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-red { background: var(--red); color: white; }
+  .btn-ghost { background: transparent; border: 1px solid var(--gray200); color: var(--gray600); }
+  .btn-whatsapp { background: #25D366; color: white; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 4rem 2rem; color: var(--gray400); }
+  .empty-state p { font-size: 0.9rem; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--dark); color: white;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 0.875rem; z-index: 999;
+    opacity: 0; transition: opacity 0.25s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>EduAssist</h1>
+    <p>Admin Dashboard</p>
+    <input type="password" id="passwordInput" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn-login" onclick="login()">Sign in</button>
+    <p class="login-error" id="loginError"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>EduAssist</h1>
+      <p>Admin Panel</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="showTab('orders')" id="tab-orders">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Orders
+      </div>
+      <div class="nav-item" onclick="showTab('stats')" id="tab-stats">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Stats
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- ORDERS TAB -->
+    <div id="ordersTab">
+      <div class="topbar">
+        <div>
+          <h2>Orders</h2>
+          <p id="ordersCount">Loading...</p>
+        </div>
+        <button class="btn btn-navy" onclick="loadOrders()">↻ Refresh</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="Search by name, email, service, ID…" oninput="debounceLoad()">
+        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setFilter('new', this)">New</button>
+        <button class="filter-btn" onclick="setFilter('in_progress', this)">In progress</button>
+        <button class="filter-btn" onclick="setFilter('completed', this)">Completed</button>
+        <button class="filter-btn" onclick="setFilter('cancelled', this)">Cancelled</button>
+      </div>
+      <div class="orders-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Client</th>
+              <th>Service</th>
+              <th>Level</th>
+              <th>Deadline</th>
+              <th>Budget</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+        <div id="emptyOrders" class="empty-state" style="display:none">
+          <p>No orders found</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS TAB -->
+    <div id="statsTab" style="display:none">
+      <div class="topbar"><div><h2>Overview</h2><p>Platform statistics</p></div></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div id="serviceBreakdown" style="background:white;border-radius:12px;border:1px solid var(--gray200);padding:1.5rem;margin-top:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER MODAL -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3 id="modalTitle">Order Details</h3>
+        <span id="modalId" style="font-size:0.75rem;color:var(--gray400);font-family:monospace;"></span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = '/api';
+  let token = '';
+  let currentFilter = 'all';
+  let debounceTimer;
+  let currentOrder = null;
+
+  // ── AUTH ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const pw = document.getElementById('passwordInput').value;
+    const res = await fetch(`${API}/admin/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ password: pw })
+    });
+    if (res.ok) {
+      token = pw;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      loadOrders();
+      loadStats();
+    } else {
+      document.getElementById('loginError').textContent = 'Incorrect password';
+    }
+  }
+
+  function logout() {
+    token = '';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('passwordInput').value = '';
+  }
+
+  function headers() { return { 'Content-Type':'application/json', 'x-admin-token': token }; }
+
+  // ── NAVIGATION ────────────────────────────────────────────────────────────
+  function showTab(tab) {
+    document.getElementById('ordersTab').style.display = tab === 'orders' ? '' : 'none';
+    document.getElementById('statsTab').style.display = tab === 'stats' ? '' : 'none';
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'stats') loadStats();
+  }
+
+  // ── ORDERS ────────────────────────────────────────────────────────────────
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadOrders();
+  }
+
+  function debounceLoad() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(loadOrders, 300);
+  }
+
+  async function loadOrders() {
+    const search = document.getElementById('searchInput').value;
+    const params = new URLSearchParams({ status: currentFilter, limit: 100, search });
+    const res = await fetch(`${API}/admin/orders?${params}`, { headers: headers() });
+    const data = await res.json();
+    renderOrders(data.orders || []);
+    document.getElementById('ordersCount').textContent = `${data.total || 0} orders`;
+  }
+
+  function renderOrders(orders) {
+    const tbody = document.getElementById('ordersBody');
+    const empty = document.getElementById('emptyOrders');
+    if (!orders.length) {
+      tbody.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = orders.map(o => `
+      <tr onclick="openOrder('${o.id}')">
+        <td><span class="order-id">${o.id}</span></td>
+        <td>${o.first_name} ${o.last_name}<br><span style="font-size:0.75rem;color:var(--gray400)">${o.email}</span></td>
+        <td>${o.service}</td>
+        <td style="font-size:0.8rem;color:var(--gray600)">${o.level || '—'}</td>
+        <td style="font-size:0.8rem;color:var(--gray600)">${o.deadline || '—'}</td>
+        <td style="font-size:0.8rem">${o.budget || '—'}</td>
+        <td>${badge(o.status)}</td>
+        <td style="font-size:0.78rem;color:var(--gray400)">${fmtDate(o.created_at)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function badge(status) {
+    const labels = { new:'New', in_progress:'In Progress', completed:'Completed', cancelled:'Cancelled' };
+    return `<span class="badge ${status}"><span class="badge-dot"></span>${labels[status] || status}</span>`;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'2-digit' });
+  }
+
+  // ── ORDER MODAL ───────────────────────────────────────────────────────────
+  async function openOrder(id) {
+    const res = await fetch(`${API}/admin/orders?search=${id}`, { headers: headers() });
+    const data = await res.json();
+    currentOrder = data.orders?.[0];
+    if (!currentOrder) return;
+
+    document.getElementById('modalTitle').textContent = `${currentOrder.service}`;
+    document.getElementById('modalId').textContent = currentOrder.id;
+
+    document.getElementById('modalBody').innerHTML = `
+      <div class="detail-row"><span class="detail-label">Client</span><span class="detail-val">${currentOrder.first_name} ${currentOrder.last_name}</span></div>
+      <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val"><a href="mailto:${currentOrder.email}" style="color:var(--navy)">${currentOrder.email}</a></span></div>
+      <div class="detail-row"><span class="detail-label">WhatsApp</span><span class="detail-val">${currentOrder.whatsapp ? `<a href="https://wa.me/${currentOrder.whatsapp.replace(/\D/g,'')}" target="_blank" style="color:#25D366">${currentOrder.whatsapp}</a>` : '—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Service</span><span class="detail-val">${currentOrder.service}</span></div>
+      <div class="detail-row"><span class="detail-label">Level</span><span class="detail-val">${currentOrder.level || '—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Deadline</span><span class="detail-val">${currentOrder.deadline || '—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Budget</span><span class="detail-val">${currentOrder.budget || '—'}</span></div>
+      ${currentOrder.details ? `<div class="detail-row"><span class="detail-label">Details</span><span class="detail-val" style="white-space:pre-wrap">${currentOrder.details}</span></div>` : ''}
+      <div class="detail-row"><span class="detail-label">Submitted</span><span class="detail-val">${new Date(currentOrder.created_at).toLocaleString()}</span></div>
+
+      <div class="detail-section" style="margin-top:16px;">
+        <label>Status</label>
+        <select id="editStatus">
+          <option value="new" ${currentOrder.status==='new'?'selected':''}>New</option>
+          <option value="in_progress" ${currentOrder.status==='in_progress'?'selected':''}>In Progress</option>
+          <option value="completed" ${currentOrder.status==='completed'?'selected':''}>Completed</option>
+          <option value="cancelled" ${currentOrder.status==='cancelled'?'selected':''}>Cancelled</option>
+        </select>
+      </div>
+      <div class="detail-section">
+        <label>Quote to send client</label>
+        <input type="text" id="editQuote" value="${currentOrder.quoted_price || ''}" placeholder="e.g. $35 USD">
+      </div>
+      <div class="detail-section">
+        <label>Admin notes / message to client</label>
+        <textarea id="editNotes" placeholder="Internal notes or message to include in quote email...">${currentOrder.admin_notes || ''}</textarea>
+      </div>
+    `;
+
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn btn-navy" onclick="saveOrder()">Save changes</button>
+      ${currentOrder.quoted_price ? `<button class="btn btn-green" onclick="saveOrder(true)">Send quote email</button>` : ''}
+      ${currentOrder.whatsapp ? `<a href="https://wa.me/${currentOrder.whatsapp.replace(/\D/g,'')}" target="_blank" class="btn btn-whatsapp">WhatsApp client</a>` : ''}
+      <a href="mailto:${currentOrder.email}" class="btn btn-ghost">Email client</a>
+      <button class="btn btn-red" onclick="deleteOrder('${currentOrder.id}')">Delete</button>
+    `;
+
+    document.getElementById('orderModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('orderModal').classList.remove('open');
+    currentOrder = null;
+  }
+
+  async function saveOrder(sendQuote = false) {
+    const status = document.getElementById('editStatus').value;
+    const quoted_price = document.getElementById('editQuote').value.trim();
+    const admin_notes = document.getElementById('editNotes').value.trim();
+
+    const body = { status, admin_notes };
+    if (quoted_price) body.quoted_price = quoted_price;
+    if (sendQuote) body.send_quote = true;
+
+    await fetch(`${API}/admin/orders/${currentOrder.id}`, {
+      method: 'PATCH', headers: headers(), body: JSON.stringify(body)
+    });
+
+    toast('Saved' + (sendQuote && quoted_price ? ' · Quote email sent' : ''));
+    closeModal();
+    loadOrders();
+  }
+
+  async function deleteOrder(id) {
+    if (!confirm(`Delete order ${id}? This cannot be undone.`)) return;
+    await fetch(`${API}/admin/orders/${id}`, { method: 'DELETE', headers: headers() });
+    toast('Order deleted');
+    closeModal();
+    loadOrders();
+  }
+
+  // ── STATS ─────────────────────────────────────────────────────────────────
+  async function loadStats() {
+    const res = await fetch(`${API}/admin/stats`, { headers: headers() });
+    const s = await res.json();
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Total orders</div><div class="stat-num navy">${s.total}</div></div>
+      <div class="stat-card"><div class="stat-label">New</div><div class="stat-num blue">${s.new}</div></div>
+      <div class="stat-card"><div class="stat-label">In progress</div><div class="stat-num gold">${s.in_progress}</div></div>
+      <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-num green">${s.completed}</div></div>
+      <div class="stat-card"><div class="stat-label">Today</div><div class="stat-num navy">${s.today}</div></div>
+      <div class="stat-card"><div class="stat-label">This week</div><div class="stat-num navy">${s.this_week}</div></div>
+    `;
+    if (s.by_service?.length) {
+      document.getElementById('serviceBreakdown').innerHTML = `
+        <p style="font-size:0.72rem;font-weight:600;color:var(--gray400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">Top services</p>
+        ${s.by_service.map(r => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span style="font-size:0.875rem;flex:1;color:var(--dark)">${r.service}</span>
+            <div style="width:120px;height:6px;background:var(--gray200);border-radius:99px;overflow:hidden;">
+              <div style="width:${Math.round(r.count/s.total*100)}%;height:100%;background:var(--navy);border-radius:99px;"></div>
+            </div>
+            <span style="font-size:0.78rem;color:var(--gray400);min-width:24px;text-align:right">${r.count}</span>
+          </div>
+        `).join('')}
+      `;
+    }
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  document.getElementById('orderModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('passwordInput').focus();
+</script>
+</body>
+</html>
