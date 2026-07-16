@@ -21,9 +21,9 @@ async function sendOrderConfirmation(order) {
   const whatsappNum = process.env.WHATSAPP_NUMBER || '254700000000';
 
   await transporter.sendMail({
-    from: `"EduAssist" <${process.env.SMTP_USER}>`,
+    from: `"Assist" <${process.env.SMTP_USER}>`,
     to: order.email,
-    subject: `✅ We received your request — EduAssist`,
+    subject: `✅ We received your request — Assist`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -34,14 +34,14 @@ async function sendOrderConfirmation(order) {
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;max-width:600px;width:100%;">
         <!-- Header -->
         <tr><td style="background:#0F2040;padding:32px 40px;">
-          <p style="margin:0;font-size:28px;font-weight:700;color:#ffffff;font-family:Georgia,serif;">EduAssist</p>
+          <p style="margin:0;font-size:28px;font-weight:700;color:#ffffff;font-family:Georgia,serif;">Assist</p>
           <p style="margin:6px 0 0;font-size:13px;color:#C8993A;letter-spacing:2px;text-transform:uppercase;">Academic & Professional Support</p>
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:36px 40px;">
           <p style="font-size:18px;font-weight:700;color:#0F2040;margin:0 0 12px;">Hi ${order.first_name}, we've got your request! 👋</p>
           <p style="color:#5A5248;font-size:14px;line-height:1.7;margin:0 0 24px;">
-            Thank you for reaching out to EduAssist. We've received your request and will get back to you with a quote <strong>within a few hours</strong>.
+            Thank you for reaching out to Assist. We've received your request and will get back to you with a quote <strong>within a few hours</strong>.
           </p>
 
           <!-- Order summary box -->
@@ -60,7 +60,7 @@ async function sendOrderConfirmation(order) {
             Want a faster response? Message us directly on WhatsApp — just mention your Order ID above.
           </p>
 
-          <a href="https://wa.me/${whatsappNum}?text=Hi%2C%20I%20submitted%20order%20${order.id}%20on%20EduAssist"
+          <a href="https://wa.me/${whatsappNum}?text=Hi%2C%20I%20submitted%20order%20${order.id}%20on%20Assist"
              style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:6px;font-size:14px;font-weight:600;">
             💬 Message us on WhatsApp
           </a>
@@ -68,8 +68,8 @@ async function sendOrderConfirmation(order) {
         <!-- Footer -->
         <tr><td style="background:#f4f2ee;padding:20px 40px;border-top:1px solid #e8e4dc;">
           <p style="margin:0;font-size:12px;color:#a09888;text-align:center;">
-            EduAssist · Academic & Professional Support Platform<br>
-            <a href="mailto:${process.env.ADMIN_EMAIL}" style="color:#C8993A;">${process.env.ADMIN_EMAIL || 'hello@eduassist.com'}</a>
+            Assist · Academic & Professional Support Platform<br>
+            <a href="mailto:${process.env.ADMIN_EMAIL}" style="color:#C8993A;">${process.env.ADMIN_EMAIL || 'hello@assist.com'}</a>
           </p>
         </td></tr>
       </table>
@@ -89,7 +89,7 @@ async function sendAdminNotification(order) {
   const transporter = createTransporter();
 
   await transporter.sendMail({
-    from: `"EduAssist Orders" <${process.env.SMTP_USER}>`,
+    from: `"Assist Orders" <${process.env.SMTP_USER}>`,
     to: process.env.ADMIN_EMAIL,
     subject: `🔔 New Order: ${order.service} — ${order.first_name} ${order.last_name}`,
     html: `
@@ -134,16 +134,16 @@ async function sendQuoteEmail(order, price, message) {
   const transporter = createTransporter();
 
   await transporter.sendMail({
-    from: `"EduAssist" <${process.env.SMTP_USER}>`,
+    from: `"Assist" <${process.env.SMTP_USER}>`,
     to: order.email,
-    subject: `💰 Your quote is ready — EduAssist`,
+    subject: `💰 Your quote is ready — Assist`,
     html: `
 <!DOCTYPE html>
 <html>
 <body style="font-family:Calibri,Arial,sans-serif;background:#f4f2ee;padding:30px;">
   <div style="background:#fff;border-radius:10px;max-width:560px;margin:auto;overflow:hidden;">
     <div style="background:#0F2040;padding:20px 30px;">
-      <p style="color:#ffffff;font-size:22px;font-weight:700;margin:0;font-family:Georgia,serif;">EduAssist</p>
+      <p style="color:#ffffff;font-size:22px;font-weight:700;margin:0;font-family:Georgia,serif;">Assist</p>
     </div>
     <div style="padding:28px 30px;">
       <p style="font-size:17px;font-weight:700;color:#0F2040;margin:0 0 10px;">Hi ${order.first_name}, your quote is ready!</p>

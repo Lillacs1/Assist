@@ -1,9 +1,9 @@
-# EduAssist — Deployment Guide
+# Assist — Deployment Guide
 
 ## What's included
 
 ```
-eduassist-backend/
+assist-backend/
 ├── server.js          ← Express API server
 ├── db.js              ← SQLite database layer
 ├── email.js           ← Email notifications (confirmation + admin alerts + quotes)
@@ -40,7 +40,7 @@ eduassist-backend/
 
 1. Go to https://railway.app and sign up (free)
 2. Click **"New Project" → "Deploy from GitHub"**
-3. Push your `eduassist-backend` folder to a GitHub repo
+3. Push your `assist-backend` folder to a GitHub repo
 4. Railway auto-detects Node.js and deploys it
 5. In Railway dashboard → **Variables**, add:
    ```
@@ -54,7 +54,7 @@ eduassist-backend/
    WHATSAPP_NUMBER=254700000000
    SITE_URL=https://your-railway-url.up.railway.app
    ```
-6. Railway gives you a URL like `https://eduassist-production.up.railway.app`
+6. Railway gives you a URL like `https://assist-production.up.railway.app`
 7. Your site: `https://your-url.up.railway.app/`
 8. Your admin: `https://your-url.up.railway.app/admin`
 
@@ -76,12 +76,12 @@ eduassist-backend/
 ```bash
 # On your server:
 git clone your-repo
-cd eduassist-backend
+cd assist-backend
 cp .env.example .env
 nano .env  # fill in your values
 npm install
 npm install -g pm2
-pm2 start server.js --name eduassist
+pm2 start server.js --name assist
 pm2 save
 pm2 startup
 ```
@@ -131,7 +131,7 @@ Features:
 ## Local development
 
 ```bash
-cd eduassist-backend
+cd assist-backend
 cp .env.example .env
 # edit .env with your values
 npm install

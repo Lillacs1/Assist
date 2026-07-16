@@ -186,7 +186,7 @@ app.delete('/api/admin/orders/:id', adminLimiter, requireAdmin, (req, res) => {
 async function start() {
   await getDb();
   app.listen(PORT, () => {
-    console.log(`\n🎓 EduAssist backend running on http://localhost:${PORT}`);
+    console.log(`\n🎓 Assist backend running on http://localhost:${PORT}`);
     console.log(`   Admin dashboard: http://localhost:${PORT}/admin`);
     console.log(`   Health check:    http://localhost:${PORT}/api/health\n`);
   });
