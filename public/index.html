@@ -341,6 +341,7 @@
     footer { flex-direction: column; text-align: center; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -351,6 +352,7 @@
     <li><a href="#services">Services</a></li>
     <li><a href="#how-it-works">How it works</a></li>
     <li><a href="#pricing">Pricing</a></li>
+    <li><a href="/dashboard">My Orders</a></li>
     <li><a href="#order" class="nav-cta">Get started</a></li>
   </ul>
   <button class="hamburger" id="hamburger" aria-label="Menu">
@@ -707,11 +709,22 @@
     btn.disabled = true;
 
     try {
-      // Change this URL to your deployed backend URL
-      const API_URL = window.EDUASSIST_API || 'http://localhost:3000';
+      // Same server serves both the site and the API, so a relative path
+      // always works — locally, on Railway, anywhere. Override only if
+      // you ever split the frontend onto a different host.
+      const API_URL = window.ASSIST_API || '';
+
+      // If the visitor is signed in (e.g. they were previously on /dashboard),
+      // attach their session token so this order links to their account too —
+      // otherwise it's saved as a guest order, same as before.
+      const supabaseClient = window.supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const authHeaders = { 'Content-Type': 'application/json' };
+      if (session) authHeaders['Authorization'] = `Bearer ${session.access_token}`;
+
       const res = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           first_name: fname,
           last_name: lname,

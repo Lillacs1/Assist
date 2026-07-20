@@ -448,6 +448,10 @@
         <input type="text" id="editQuote" value="${currentOrder.quoted_price || ''}" placeholder="e.g. $35 USD">
       </div>
       <div class="detail-section">
+        <label>Estimated completion (shown on client's dashboard)</label>
+        <input type="datetime-local" id="editEstCompletion" value="${currentOrder.estimated_completion ? toLocalInputValue(currentOrder.estimated_completion) : ''}">
+      </div>
+      <div class="detail-section">
         <label>Admin notes / message to client</label>
         <textarea id="editNotes" placeholder="Internal notes or message to include in quote email...">${currentOrder.admin_notes || ''}</textarea>
       </div>
@@ -469,13 +473,25 @@
     currentOrder = null;
   }
 
+  // datetime-local inputs need "YYYY-MM-DDTHH:mm" in the *local* timezone —
+  // this converts a stored UTC ISO timestamp into that format for editing.
+  function toLocalInputValue(iso) {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   async function saveOrder(sendQuote = false) {
     const status = document.getElementById('editStatus').value;
     const quoted_price = document.getElementById('editQuote').value.trim();
     const admin_notes = document.getElementById('editNotes').value.trim();
+    const estInput = document.getElementById('editEstCompletion').value;
 
     const body = { status, admin_notes };
     if (quoted_price) body.quoted_price = quoted_price;
+    // Empty input explicitly clears the estimate; a filled input converts
+    // the local datetime back to a proper ISO timestamp for storage.
+    body.estimated_completion = estInput ? new Date(estInput).toISOString() : null;
     if (sendQuote) body.send_quote = true;
 
     await fetch(`${API}/admin/orders/${currentOrder.id}`, {

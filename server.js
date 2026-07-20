@@ -1,18 +1,24 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
-const { getDb, run, all, get } = require('./db');
+const {
+  getUserFromToken,
+  createOrder,
+  getOrderById,
+  getOrdersForClient,
+  listOrders,
+  getStats,
+  updateOrder,
+  deleteOrder,
+} = require('./supabase');
 const { sendOrderConfirmation, sendAdminNotification, sendQuoteEmail } = require('./email');
 
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// ── STATIC FILES ──────────────────────────────────────────────────────────────
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 app.use(express.json());
@@ -24,6 +30,30 @@ app.use(cors({
 
 const orderLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many requests. Please try again later.' } });
 const adminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
+const dashboardLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+
+// ── STATIC PAGES (with Supabase config injected) ─────────────────────────────
+// index.html and dashboard.html both need the public Supabase URL + anon key
+// to run supabase-js in the browser. Rather than hardcoding those into the
+// committed HTML, we inject them from environment variables at request time.
+// (These two values are safe to expose in the browser — that's how Supabase's
+// anon key is designed to work — unlike SUPABASE_SERVICE_ROLE_KEY, which never
+// leaves the server.)
+function serveWithConfig(filePath) {
+  return (req, res) => {
+    let html = fs.readFileSync(filePath, 'utf8');
+    html = html
+      .replace(/__SUPABASE_URL__/g, process.env.SUPABASE_URL || '')
+      .replace(/__SUPABASE_ANON_KEY__/g, process.env.SUPABASE_ANON_KEY || '');
+    res.set('Content-Type', 'text/html');
+    res.send(html);
+  };
+}
+
+app.get('/', serveWithConfig(path.join(__dirname, 'public', 'index.html')));
+app.get('/dashboard', serveWithConfig(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ── AUTH MIDDLEWARE ───────────────────────────────────────────────────────────
 function requireAdmin(req, res, next) {
@@ -41,7 +71,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Submit order
+// Submit order — works for anonymous visitors AND signed-in clients.
+// If the request carries a valid Supabase access token (the client is
+// logged in with Google), the order is linked to their account so it shows
+// up on their dashboard. Otherwise it's created exactly as before.
 app.post('/api/orders', orderLimiter, async (req, res) => {
   const { first_name, last_name, email, whatsapp, service, level, deadline, budget, details } = req.body;
 
@@ -54,10 +87,13 @@ app.post('/api/orders', orderLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Invalid email address' });
   }
 
+  const user = await getUserFromToken(req.headers.authorization);
+
   const order = {
-    id: 'EA-' + uuidv4().slice(0, 8).toUpperCase(),
+    id: 'AS-' + uuidv4().slice(0, 8).toUpperCase(),
     created_at: new Date().toISOString(),
     status: 'new',
+    client_id: user?.id || null,
     first_name: first_name.trim(),
     last_name: last_name.trim(),
     email: email.trim().toLowerCase(),
@@ -69,15 +105,15 @@ app.post('/api/orders', orderLimiter, async (req, res) => {
     details: details?.trim() || null,
     admin_notes: null,
     quoted_price: null,
-    updated_at: new Date().toISOString(),
+    estimated_completion: null,
   };
 
-  run(`INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-    order.id, order.created_at, order.status,
-    order.first_name, order.last_name, order.email, order.whatsapp,
-    order.service, order.level, order.deadline, order.budget, order.details,
-    order.admin_notes, order.quoted_price, order.updated_at
-  ]);
+  try {
+    await createOrder(order);
+  } catch (e) {
+    console.error('[DB] Failed to create order:', e.message);
+    return res.status(500).json({ error: 'Could not save your order. Please try again.' });
+  }
 
   // Send emails (non-blocking)
   sendOrderConfirmation(order).catch(e => console.error('[EMAIL] Confirmation failed:', e.message));
@@ -90,11 +126,34 @@ app.post('/api/orders', orderLimiter, async (req, res) => {
   });
 });
 
-// Track order by ID (for clients)
-app.get('/api/orders/:id', (req, res) => {
-  const order = get(`SELECT id, created_at, status, first_name, service, level, deadline, quoted_price FROM orders WHERE id = ?`, [req.params.id.toUpperCase()]);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  res.json(order);
+// Track a single order by ID (public — no login needed, matches old behaviour)
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const order = await getOrderById(req.params.id.toUpperCase());
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const { id, created_at, status, first_name, service, level, deadline, quoted_price, estimated_completion } = order;
+    res.json({ id, created_at, status, first_name, service, level, deadline, quoted_price, estimated_completion });
+  } catch (e) {
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// ── CLIENT DASHBOARD ROUTES ───────────────────────────────────────────────────
+
+// Returns the signed-in client's own orders. Requires a valid Supabase
+// access token in the Authorization header — the frontend gets this
+// automatically from supabase-js after Google sign-in.
+app.get('/api/my/orders', dashboardLimiter, async (req, res) => {
+  const user = await getUserFromToken(req.headers.authorization);
+  if (!user) return res.status(401).json({ error: 'Not signed in' });
+
+  try {
+    const orders = await getOrdersForClient(user.id);
+    res.json({ orders });
+  } catch (e) {
+    console.error('[DB] Failed to fetch client orders:', e.message);
+    res.status(500).json({ error: 'Could not load your orders' });
+  }
 });
 
 // ── ADMIN ROUTES ──────────────────────────────────────────────────────────────
@@ -109,65 +168,55 @@ app.post('/api/admin/login', adminLimiter, (req, res) => {
 });
 
 // Get all orders
-app.get('/api/admin/orders', adminLimiter, requireAdmin, (req, res) => {
+app.get('/api/admin/orders', adminLimiter, requireAdmin, async (req, res) => {
   const { status, search, limit = 50, offset = 0 } = req.query;
-  let sql = `SELECT * FROM orders`;
-  const params = [];
-  const conditions = [];
-
-  if (status && status !== 'all') {
-    conditions.push(`status = ?`);
-    params.push(status);
+  try {
+    const { orders, total } = await listOrders({ status, search, limit, offset });
+    res.json({ orders, total });
+  } catch (e) {
+    console.error('[DB] Failed to list orders:', e.message);
+    res.status(500).json({ error: 'Could not load orders' });
   }
-  if (search) {
-    conditions.push(`(first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR id LIKE ? OR service LIKE ?)`);
-    const s = `%${search}%`;
-    params.push(s, s, s, s, s);
-  }
-  if (conditions.length) sql += ` WHERE ` + conditions.join(' AND ');
-  sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-  params.push(parseInt(limit), parseInt(offset));
-
-  const orders = all(sql, params);
-  const total = get(`SELECT COUNT(*) as count FROM orders` + (conditions.length ? ` WHERE ` + conditions.join(' AND ') : ''), params.slice(0, -2));
-  res.json({ orders, total: total?.count || 0 });
 });
 
 // Get stats
-app.get('/api/admin/stats', adminLimiter, requireAdmin, (req, res) => {
-  const stats = {
-    total: get(`SELECT COUNT(*) as c FROM orders`)?.c || 0,
-    new: get(`SELECT COUNT(*) as c FROM orders WHERE status='new'`)?.c || 0,
-    in_progress: get(`SELECT COUNT(*) as c FROM orders WHERE status='in_progress'`)?.c || 0,
-    completed: get(`SELECT COUNT(*) as c FROM orders WHERE status='completed'`)?.c || 0,
-    cancelled: get(`SELECT COUNT(*) as c FROM orders WHERE status='cancelled'`)?.c || 0,
-    today: get(`SELECT COUNT(*) as c FROM orders WHERE date(created_at) = date('now')`)?.c || 0,
-    this_week: get(`SELECT COUNT(*) as c FROM orders WHERE created_at >= datetime('now', '-7 days')`)?.c || 0,
-    by_service: all(`SELECT service, COUNT(*) as count FROM orders GROUP BY service ORDER BY count DESC LIMIT 5`),
-  };
-  res.json(stats);
+app.get('/api/admin/stats', adminLimiter, requireAdmin, async (req, res) => {
+  try {
+    res.json(await getStats());
+  } catch (e) {
+    console.error('[DB] Failed to load stats:', e.message);
+    res.status(500).json({ error: 'Could not load stats' });
+  }
 });
 
-// Update order status / notes / quote
+// Update order status / notes / quote / estimated completion time
 app.patch('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) => {
-  const { status, admin_notes, quoted_price } = req.body;
-  const order = get(`SELECT * FROM orders WHERE id = ?`, [req.params.id]);
+  const { status, admin_notes, quoted_price, estimated_completion } = req.body;
+
+  let order;
+  try {
+    order = await getOrderById(req.params.id);
+  } catch (e) {
+    return res.status(500).json({ error: 'Lookup failed' });
+  }
   if (!order) return res.status(404).json({ error: 'Order not found' });
 
-  const updates = [];
-  const params = [];
-  if (status !== undefined) { updates.push('status = ?'); params.push(status); }
-  if (admin_notes !== undefined) { updates.push('admin_notes = ?'); params.push(admin_notes); }
-  if (quoted_price !== undefined) { updates.push('quoted_price = ?'); params.push(quoted_price); }
-  updates.push('updated_at = ?');
-  params.push(new Date().toISOString());
-  params.push(req.params.id);
+  const fields = {};
+  if (status !== undefined) fields.status = status;
+  if (admin_notes !== undefined) fields.admin_notes = admin_notes;
+  if (quoted_price !== undefined) fields.quoted_price = quoted_price;
+  if (estimated_completion !== undefined) fields.estimated_completion = estimated_completion || null;
 
-  run(`UPDATE orders SET ${updates.join(', ')} WHERE id = ?`, params);
+  let updatedOrder;
+  try {
+    updatedOrder = await updateOrder(req.params.id, fields);
+  } catch (e) {
+    console.error('[DB] Failed to update order:', e.message);
+    return res.status(500).json({ error: 'Update failed' });
+  }
 
   // If quote was just set, email the client
   if (quoted_price && quoted_price !== order.quoted_price) {
-    const updatedOrder = get(`SELECT * FROM orders WHERE id = ?`, [req.params.id]);
     sendQuoteEmail(updatedOrder, quoted_price, admin_notes).catch(e => console.error('[EMAIL] Quote email failed:', e.message));
   }
 
@@ -175,21 +224,26 @@ app.patch('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) 
 });
 
 // Delete order
-app.delete('/api/admin/orders/:id', adminLimiter, requireAdmin, (req, res) => {
-  const order = get(`SELECT id FROM orders WHERE id = ?`, [req.params.id]);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  run(`DELETE FROM orders WHERE id = ?`, [req.params.id]);
-  res.json({ success: true });
+app.delete('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) => {
+  try {
+    const order = await getOrderById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    await deleteOrder(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[DB] Failed to delete order:', e.message);
+    res.status(500).json({ error: 'Delete failed' });
+  }
 });
 
-// ── START ─────────────────────────────────────────────────────────────────────
-async function start() {
-  await getDb();
+// ── START (local dev only — Vercel imports `app` directly, see api/index.js) ──
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`\n🎓 Assist backend running on http://localhost:${PORT}`);
     console.log(`   Admin dashboard: http://localhost:${PORT}/admin`);
+    console.log(`   Client dashboard: http://localhost:${PORT}/dashboard`);
     console.log(`   Health check:    http://localhost:${PORT}/api/health\n`);
   });
 }
 
-start().catch(console.error);
+module.exports = app;
