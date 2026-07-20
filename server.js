@@ -1,4 +1,18 @@
 require('dotenv').config();
+
+// Catch the exact mistake that just happened — pasting the dashboard page
+// URL instead of the real API URL — before it causes confusing "fetch
+// failed" errors scattered across every route.
+if (process.env.SUPABASE_URL && !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(process.env.SUPABASE_URL.trim())) {
+  console.error(
+    '\n❌ SUPABASE_URL in your .env looks wrong.\n' +
+    `   You have: ${process.env.SUPABASE_URL}\n` +
+    '   It should look like: https://your-project-ref.supabase.co\n' +
+    '   Find the correct one in Supabase → Settings → API → "Project URL"\n' +
+    '   (NOT the supabase.com/dashboard/project/... link from your browser tab).\n'
+  );
+  process.exit(1);
+}
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');

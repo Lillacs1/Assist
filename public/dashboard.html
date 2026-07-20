@@ -181,10 +181,11 @@
   }
 
   document.getElementById('googleSignInBtn').addEventListener('click', async () => {
-    await supabaseClient.auth.signInWithOAuth({
+    const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin + '/dashboard' }
     });
+    if (error) alert('Sign-in failed: ' + error.message);
   });
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {
