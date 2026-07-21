@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — Assist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #004e89; --navy-light: #003d6b; --gold: #ff6b35; --gold-light: #ffc857;
+    --cream: #fff9f0; --white: #ffffff; --gray-100: #f8f9fa; --gray-200: #e0e0e0;
+    --gray-400: #6c757d; --gray-600: #4a4a4a; --gray-800: #2d2d2d;
+    --green: #28a745; --green-bg: #e8f5ee; --amber: #b3760c; --amber-bg: #fdf3e0;
+    --red: #b3261e; --red-bg: #fdeaea;
+  }
+  body { font-family: 'Inter', sans-serif; color: var(--gray-800); background: var(--gray-100); min-height: 100vh; }
+
+  header {
+    background: var(--navy); color: white; padding: 1rem 5%;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header a.brand { color: white; text-decoration: none; font-weight: 800; font-size: 1.1rem; }
+  #signOutBtn {
+    background: transparent; border: 1px solid rgba(255,255,255,0.4); color: white;
+    padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; display: none;
+  }
+  #signOutBtn:hover { background: rgba(255,255,255,0.1); }
+
+  main { max-width: 800px; margin: 0 auto; padding: 3rem 5%; }
+
+  /* Signed-out state — using the platform without an account is completely
+     fine; this page is only where signing in is offered, never required. */
+  #signedOut { text-align: center; padding: 4rem 1rem; }
+  #signedOut h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+  #signedOut p { color: var(--gray-400); margin-bottom: 1rem; }
+  #signedOut .guest-note { font-size: 0.85rem; margin-bottom: 2rem; }
+  .google-btn {
+    display: inline-flex; align-items: center; gap: 10px; background: white;
+    border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px 24px;
+    font-size: 0.95rem; font-weight: 600; color: var(--gray-800); cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .google-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+  /* Signed-in state */
+  #signedIn { display: none; }
+  #signedIn h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+
+  .card {
+    background: white; border-radius: 12px; padding: 1.5rem;
+    margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card h2 { font-size: 1.05rem; margin-bottom: 1rem; }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
+  .field input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: 6px;
+    font-size: 0.92rem; font-family: inherit;
+  }
+  .field input:disabled { background: var(--gray-100); color: var(--gray-400); }
+  .save-btn {
+    background: var(--navy); color: white; border: none; border-radius: 6px;
+    padding: 10px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  }
+  .save-btn:hover { background: var(--navy-light); }
+  .save-btn:disabled { opacity: 0.6; cursor: default; }
+  .save-msg { font-size: 0.82rem; color: var(--green); margin-left: 10px; }
+
+  .order-card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .order-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .order-id { font-size: 0.78rem; color: var(--gray-400); letter-spacing: 0.5px; }
+  .order-service { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  .status-badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .status-new { background: var(--gray-200); color: var(--gray-600); }
+  .status-in_progress { background: var(--amber-bg); color: var(--amber); }
+  .status-completed { background: var(--green-bg); color: var(--green); }
+  .status-cancelled { background: var(--red-bg); color: var(--red); }
+
+  .progress-track { height: 6px; background: var(--gray-200); border-radius: 3px; margin: 1rem 0 0.75rem; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.4s ease; }
+
+  .order-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: var(--gray-600); }
+  .order-meta strong { color: var(--gray-800); }
+
+  #emptyState, #loadingState, #errorState { text-align: center; padding: 3rem 1rem; color: var(--gray-400); }
+  #errorState { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="brand">Assist</a>
+  <button id="signOutBtn">Sign out</button>
+</header>
+
+<main>
+
+  <div id="loadingState">Loading…</div>
+
+  <div id="signedOut" style="display:none;">
+    <h1>Your profile</h1>
+    <p>Sign in to save your details, and to see live progress and estimated completion times for your orders.</p>
+    <p class="guest-note">You don't need an account to place an order — this is entirely optional.</p>
+    <button class="google-btn" id="googleSignInBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+  </div>
+
+  <div id="signedIn">
+    <h1>Your profile</h1>
+
+    <div class="card">
+      <h2>Account details</h2>
+      <div class="field">
+        <label for="profFullName">Full name</label>
+        <input type="text" id="profFullName" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label for="profEmail">Email</label>
+        <input type="email" id="profEmail" disabled>
+      </div>
+      <div class="field">
+        <label for="profPhone">Phone / WhatsApp</label>
+        <input type="tel" id="profPhone" placeholder="+254 700 000 000">
+      </div>
+      <button class="save-btn" id="saveProfileBtn">Save</button>
+      <span class="save-msg" id="saveMsg" style="display:none;">Saved ✓</span>
+    </div>
+
+    <h2 style="font-size:1.05rem; margin-bottom:1rem;">Your orders</h2>
+    <div id="ordersList"></div>
+    <div id="emptyState" style="display:none;">You haven't placed any orders yet. <a href="/#order">Start one here</a>.</div>
+  </div>
+
+  <div id="errorState" style="display:none;"></div>
+
+</main>
+
+<script>
+  const supabaseClient = window.supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
+
+  const STATUS_LABELS = { new: 'Received', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' };
+  const STATUS_PROGRESS = { new: 15, in_progress: 60, completed: 100, cancelled: 0 };
+
+  function fmtDate(iso) {
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function renderOrders(orders) {
+    const list = document.getElementById('ordersList');
+    const empty = document.getElementById('emptyState');
+    if (!orders.length) {
+      empty.style.display = 'block';
+      list.innerHTML = '';
+      return;
+    }
+    empty.style.display = 'none';
+    list.innerHTML = orders.map(o => `
+      <div class="order-card">
+        <div class="order-card-top">
+          <div>
+            <div class="order-id">${o.id}</div>
+            <div class="order-service">${o.service}${o.level ? ' · ' + o.level : ''}</div>
+          </div>
+          <span class="status-badge status-${o.status}">${STATUS_LABELS[o.status] || o.status}</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:${STATUS_PROGRESS[o.status] ?? 0}%"></div></div>
+        <div class="order-meta">
+          <span>Placed <strong>${fmtDate(o.created_at)}</strong></span>
+          ${o.deadline ? `<span>Your deadline <strong>${fmtDate(o.deadline)}</strong></span>` : ''}
+          ${o.estimated_completion ? `<span>Estimated done <strong>${fmtDate(o.estimated_completion)}</strong></span>` : ''}
+          ${o.quoted_price ? `<span>Quote <strong>${o.quoted_price}</strong></span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadOrders(session) {
+    try {
+      const res = await fetch('/api/my/orders', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load orders');
+      const data = await res.json();
+      renderOrders(data.orders || []);
+    } catch (e) {
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorState').textContent = 'Could not load your orders. Please refresh the page.';
+    }
+  }
+
+  // Loads the real profile row (from the profiles table, created
+  // automatically by the database trigger the moment this user first
+  // signed in) and fills the editable fields with it.
+  async function loadProfile(session) {
+    try {
+      const res = await fetch('/api/my/profile', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+      document.getElementById('profFullName').value = data.profile?.full_name || session.user.user_metadata?.full_name || '';
+      document.getElementById('profEmail').value = data.profile?.email || session.user.email || '';
+      document.getElementById('profPhone').value = data.profile?.phone || '';
+    } catch (e) {
+      document.getElementById('profFullName').value = session.user.user_metadata?.full_name || '';
+      document.getElementById('profEmail').value = session.user.email || '';
+    }
+  }
+
+  async function saveProfile(session) {
+    const btn = document.getElementById('saveProfileBtn');
+    const msg = document.getElementById('saveMsg');
+    btn.disabled = true;
+    msg.style.display = 'none';
+    try {
+      const res = await fetch('/api/my/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          full_name: document.getElementById('profFullName').value.trim(),
+          phone: document.getElementById('profPhone').value.trim(),
+        })
+      });
+      if (!res.ok) throw new Error();
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    } catch (e) {
+      alert('Could not save your profile. Please try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function render() {
+    document.getElementById('loadingState').style.display = 'none';
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+      document.getElementById('signedOut').style.display = 'block';
+      document.getElementById('signedIn').style.display = 'none';
+      document.getElementById('signOutBtn').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('signedOut').style.display = 'none';
+    document.getElementById('signedIn').style.display = 'block';
+    document.getElementById('signOutBtn').style.display = 'inline-block';
+    loadProfile(session);
+    loadOrders(session);
+  }
+
+  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/profile' }
+    });
+    if (error) alert('Sign-in failed: ' + error.message);
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    render();
+  });
+
+  document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) saveProfile(session);
+  });
+
+  supabaseClient.auth.onAuthStateChange(() => render());
+  render();
+</script>
+
+</body>
+</html>

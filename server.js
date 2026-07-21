@@ -20,6 +20,8 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const {
   getUserFromToken,
+  getProfile,
+  updateProfile,
   createOrder,
   getOrderById,
   getOrdersForClient,
@@ -65,7 +67,8 @@ function serveWithConfig(filePath) {
 }
 
 app.get('/', serveWithConfig(path.join(__dirname, 'public', 'index.html')));
-app.get('/dashboard', serveWithConfig(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/profile', serveWithConfig(path.join(__dirname, 'public', 'profile.html')));
+app.get('/dashboard', (req, res) => res.redirect(301, '/profile')); // old link, kept working
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -153,6 +156,41 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 
 // ── CLIENT DASHBOARD ROUTES ───────────────────────────────────────────────────
+
+// Returns the signed-in client's own profile row — the one created
+// automatically by the database trigger the moment they first signed in
+// (see supabase/schema.sql: handle_new_user). Not just session data.
+app.get('/api/my/profile', dashboardLimiter, async (req, res) => {
+  const user = await getUserFromToken(req.headers.authorization);
+  if (!user) return res.status(401).json({ error: 'Not signed in' });
+
+  try {
+    const profile = await getProfile(user.id);
+    res.json({ profile });
+  } catch (e) {
+    console.error('[DB] Failed to fetch profile:', e.message);
+    res.status(500).json({ error: 'Could not load your profile' });
+  }
+});
+
+// Lets a signed-in client update their own name/phone.
+app.patch('/api/my/profile', dashboardLimiter, async (req, res) => {
+  const user = await getUserFromToken(req.headers.authorization);
+  if (!user) return res.status(401).json({ error: 'Not signed in' });
+
+  const { full_name, phone } = req.body;
+  const fields = {};
+  if (typeof full_name === 'string') fields.full_name = full_name.trim();
+  if (typeof phone === 'string') fields.phone = phone.trim();
+
+  try {
+    const profile = await updateProfile(user.id, fields);
+    res.json({ profile });
+  } catch (e) {
+    console.error('[DB] Failed to update profile:', e.message);
+    res.status(500).json({ error: 'Could not save your profile' });
+  }
+});
 
 // Returns the signed-in client's own orders. Requires a valid Supabase
 // access token in the Authorization header — the frontend gets this
@@ -255,7 +293,7 @@ if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`\n🎓 Assist backend running on http://localhost:${PORT}`);
     console.log(`   Admin dashboard: http://localhost:${PORT}/admin`);
-    console.log(`   Client dashboard: http://localhost:${PORT}/dashboard`);
+    console.log(`   Client profile:   http://localhost:${PORT}/profile`);
     console.log(`   Health check:    http://localhost:${PORT}/api/health\n`);
   });
 }

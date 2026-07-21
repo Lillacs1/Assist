@@ -116,11 +116,10 @@ async function sendAdminNotification(order) {
         <p style="font-size:11px;color:#a09888;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Details</p>
         <p style="font-size:13px;color:#2C2820;margin:0;line-height:1.6;">${order.details}</p>
       </div>` : ''}
-      ${order.whatsapp ? `
       <div style="margin-top:20px;">
-        <a href="https://wa.me/${order.whatsapp.replace(/\D/g,'')}" style="background:#25D366;color:white;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:600;display:inline-block;margin-right:10px;">Reply on WhatsApp</a>
+        ${order.whatsapp ? `<a href="https://wa.me/${order.whatsapp.replace(/\D/g,'')}" style="background:#25D366;color:white;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:600;display:inline-block;margin-right:10px;">Reply on WhatsApp</a>` : ''}
         <a href="mailto:${order.email}" style="border:1px solid #0F2040;color:#0F2040;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:13px;display:inline-block;">Reply by Email</a>
-      </div>` : ''}
+      </div>
     </div>
   </div>
 </body>

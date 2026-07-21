@@ -258,31 +258,6 @@
 
   /* ORDER FORM */
   .form-section { background: var(--cream); }
-
-  /* Account bar — sign-in + inline order tracking, merged into the order
-     flow itself instead of living only on a separate /dashboard page. */
-  .account-bar {
-    max-width: 640px; margin: 0 auto 1.5rem; padding: 1rem 1.25rem;
-    background: white; border: 1px solid var(--gray-200); border-radius: 10px;
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
-  }
-  .account-bar .acct-left { display: flex; align-items: center; gap: 0.6rem; font-size: 0.92rem; color: var(--gray-600); }
-  .btn-google {
-    display: inline-flex; align-items: center; gap: 8px; background: white;
-    border: 1px solid var(--gray-200); border-radius: 6px; padding: 8px 16px;
-    font-size: 0.88rem; font-weight: 500; color: var(--gray-800); cursor: pointer;
-  }
-  .btn-google:hover { background: var(--gray-100); }
-  .btn-signout { background: none; border: none; color: var(--gray-400); font-size: 0.82rem; text-decoration: underline; cursor: pointer; }
-  .my-orders-inline { max-width: 640px; margin: 0 auto 1.5rem; }
-  .my-orders-inline summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--navy); padding: 0.5rem 0; }
-  .mini-order { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--gray-200); font-size: 0.86rem; }
-  .mini-order:last-child { border-bottom: none; }
-  .mini-status { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
-  .mini-status.new { background: #e7f1ff; color: #1c5cc9; }
-  .mini-status.in_progress { background: #fff4e0; color: #b56a00; }
-  .mini-status.completed { background: #e3f7ea; color: #1f8a4c; }
-  .mini-status.cancelled { background: #fde8e8; color: #c0392b; }
   .order-form {
     background: var(--white);
     border: 1px solid var(--gray-200);
@@ -377,7 +352,7 @@
     <li><a href="#services">Services</a></li>
     <li><a href="#how-it-works">How it works</a></li>
     <li><a href="#pricing">Pricing</a></li>
-    <li><a href="/dashboard">My Orders</a></li>
+    <li><a href="/profile">Profile</a></li>
     <li><a href="#order" class="nav-cta">Get started</a></li>
   </ul>
   <button class="hamburger" id="hamburger" aria-label="Menu">
@@ -598,23 +573,7 @@
 <section class="form-section" id="order">
   <div class="section-label">Place an order</div>
   <h2 class="section-title">Start your request</h2>
-  <p class="section-sub">Fill in the form below and we'll get back to you with a quote within a few hours.</p>
-
-  <div class="account-bar" id="acctSignedOut">
-    <div class="acct-left">Sign in so your orders are saved to your account and you can track progress here.</div>
-    <button type="button" class="btn-google" id="homeGoogleSignIn">
-      <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.96 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.96H.96C.35 6.17 0 7.55 0 9s.35 2.83.96 4.04l3-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3 2.34C4.67 5.16 6.66 3.58 9 3.58z"/></svg>
-      Continue with Google
-    </button>
-  </div>
-  <div class="account-bar" id="acctSignedIn" style="display:none;">
-    <div class="acct-left" id="acctGreeting"></div>
-    <button type="button" class="btn-signout" id="homeSignOut">Sign out</button>
-  </div>
-  <details class="my-orders-inline" id="myOrdersInline" style="display:none;">
-    <summary>Your recent orders</summary>
-    <div id="miniOrdersList" style="padding-top:0.5rem;"></div>
-  </details>
+  <p class="section-sub">Fill in the form below and we'll get back to you with a quote within a few hours. <a href="/profile">Sign in</a> first if you'd like your orders saved to a profile you can track — entirely optional.</p>
 
   <div class="order-form">
     <div class="form-row">
@@ -737,80 +696,10 @@
     document.getElementById('navLinks').classList.toggle('open');
   });
 
-  // One shared client for the whole page — used both for the account bar
-  // below and for attaching the session token when an order is submitted.
+  // One shared client — used only to silently check whether the visitor is
+  // already signed in (via the Profile tab), so their order can be linked
+  // to their account. Signing in itself only happens on the Profile page.
   const supabaseClient = window.supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
-
-  function statusLabel(s) {
-    return { new: 'New', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' }[s] || s;
-  }
-
-  async function loadMiniOrders(session) {
-    try {
-      const res = await fetch('/api/my/orders', { headers: { Authorization: `Bearer ${session.access_token}` } });
-      const data = await res.json();
-      const orders = data.orders || [];
-      const list = document.getElementById('miniOrdersList');
-      const wrap = document.getElementById('myOrdersInline');
-      if (!orders.length) {
-        wrap.style.display = 'none';
-        return;
-      }
-      wrap.style.display = 'block';
-      list.innerHTML = orders.slice(0, 5).map(o => `
-        <div class="mini-order">
-          <span>${o.service || 'Order'} · ${o.id}${o.estimated_completion ? ' · ETA ' + new Date(o.estimated_completion).toLocaleDateString() : ''}</span>
-          <span class="mini-status ${o.status}">${statusLabel(o.status)}</span>
-        </div>
-      `).join('');
-    } catch (e) {
-      // Inline widget fails quietly here — the full /dashboard page is
-      // still available and shows a proper error state if something's wrong.
-    }
-  }
-
-  async function renderAccountBar() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-      document.getElementById('acctSignedOut').style.display = 'flex';
-      document.getElementById('acctSignedIn').style.display = 'none';
-      document.getElementById('myOrdersInline').style.display = 'none';
-      return;
-    }
-    document.getElementById('acctSignedOut').style.display = 'none';
-    document.getElementById('acctSignedIn').style.display = 'flex';
-    const name = session.user.user_metadata?.full_name || session.user.email;
-    document.getElementById('acctGreeting').textContent = `Signed in as ${name}`;
-
-    // Convenience: pre-fill the order form so a signed-in client doesn't
-    // have to retype what Google already told us.
-    if (!document.getElementById('fname').value) {
-      const [first, ...rest] = (session.user.user_metadata?.full_name || '').split(' ');
-      if (first) document.getElementById('fname').value = first;
-      if (rest.length) document.getElementById('lname').value = rest.join(' ');
-    }
-    if (!document.getElementById('email').value) {
-      document.getElementById('email').value = session.user.email || '';
-    }
-
-    loadMiniOrders(session);
-  }
-
-  document.getElementById('homeGoogleSignIn').addEventListener('click', async () => {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin + '/#order' }
-    });
-    if (error) alert('Sign-in failed: ' + error.message);
-  });
-
-  document.getElementById('homeSignOut').addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    renderAccountBar();
-  });
-
-  supabaseClient.auth.onAuthStateChange(() => renderAccountBar());
-  renderAccountBar();
 
   async function handleSubmit() {
     const fname = document.getElementById('fname').value.trim();
@@ -858,7 +747,6 @@
         btn.textContent = `✓ Submitted! Your order ID is ${data.order_id}`;
         btn.style.background = '#1a6b45';
         document.getElementById('details').value = '';
-        if (session) loadMiniOrders(session);
       } else {
         btn.textContent = 'Submit request →';
         btn.disabled = false;

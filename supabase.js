@@ -28,6 +28,27 @@ async function getUserFromToken(authHeader) {
   return data.user;
 }
 
+async function getProfile(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email, phone, created_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function updateProfile(userId, fields) {
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update(fields)
+    .eq('id', userId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 async function createOrder(order) {
   const { error } = await supabaseAdmin.from('orders').insert(order);
   if (error) throw error;
@@ -144,6 +165,8 @@ async function deleteOrder(id) {
 module.exports = {
   supabaseAdmin,
   getUserFromToken,
+  getProfile,
+  updateProfile,
   createOrder,
   getOrderById,
   getOrdersForClient,
