@@ -6,144 +6,360 @@
 <title>Profile — Assist</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --navy: #004e89; --navy-light: #003d6b; --gold: #ff6b35; --gold-light: #ffc857;
-    --cream: #fff9f0; --white: #ffffff; --gray-100: #f8f9fa; --gray-200: #e0e0e0;
-    --gray-400: #6c757d; --gray-600: #4a4a4a; --gray-800: #2d2d2d;
+    --navy: #004e89; --navy-dark: #001f3d; --navy-text: #0d1b2a;
+    --gold: #ff6b35; --gold-light: #ffc857;
+    --text-secondary: #64748b; --border: #e5e7eb;
+    --card-bg: #ffffff; --gray-100: #f8f9fa;
     --green: #28a745; --green-bg: #e8f5ee; --amber: #b3760c; --amber-bg: #fdf3e0;
     --red: #b3261e; --red-bg: #fdeaea;
   }
-  body { font-family: 'Inter', sans-serif; color: var(--gray-800); background: var(--gray-100); min-height: 100vh; }
-
-  header {
-    background: var(--navy); color: white; padding: 1rem 5%;
-    display: flex; align-items: center; justify-content: space-between;
+  body {
+    font-family: 'Inter', sans-serif; color: var(--navy-text);
+    min-height: 100vh;
   }
-  header a.brand { color: white; text-decoration: none; font-weight: 800; font-size: 1.1rem; }
-  #signOutBtn {
-    background: transparent; border: 1px solid rgba(255,255,255,0.4); color: white;
-    padding: 6px 14px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; display: none;
+
+  /* ── SIGNED-OUT: full-bleed navy gradient with two soft gold glows ── */
+  .signin-page {
+    min-height: 100vh; position: relative; overflow: hidden;
+    background: radial-gradient(ellipse at top left, var(--navy) 0%, var(--navy-dark) 65%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 3rem 1.25rem;
   }
-  #signOutBtn:hover { background: rgba(255,255,255,0.1); }
-
-  main { max-width: 800px; margin: 0 auto; padding: 3rem 5%; }
-
-  /* Signed-out state — using the platform without an account is completely
-     fine; this page is only where signing in is offered, never required. */
-  #signedOut { text-align: center; padding: 4rem 1rem; }
-  #signedOut h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
-  #signedOut p { color: var(--gray-400); margin-bottom: 1rem; }
-  #signedOut .guest-note { font-size: 0.85rem; margin-bottom: 2rem; }
-  .google-btn {
-    display: inline-flex; align-items: center; gap: 10px; background: white;
-    border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px 24px;
-    font-size: 0.95rem; font-weight: 600; color: var(--gray-800); cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  .signin-page::before, .signin-page::after {
+    content: ''; position: absolute; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,200,87,0.22), transparent 70%);
   }
-  .google-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+  .signin-page::before { width: 460px; height: 460px; top: -180px; right: -140px; }
+  .signin-page::after  { width: 380px; height: 380px; bottom: -160px; left: -120px; }
 
-  /* Signed-in state */
-  #signedIn { display: none; }
-  #signedIn h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+  .signin-card {
+    position: relative; z-index: 1; background: var(--card-bg);
+    border-radius: 18px; max-width: 420px; width: 100%;
+    padding: 32px; text-align: center;
+    box-shadow: 0 20px 40px rgba(0,30,61,0.25);
+    border-top: 4px solid var(--gold-light);
+    border-image: linear-gradient(90deg, var(--gold), var(--gold-light)) 1;
+  }
+  .signin-icon {
+    width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .signin-card h1 {
+    font-family: 'Poppins', sans-serif; font-weight: 600;
+    font-size: 28px; line-height: 36px; color: var(--navy-text);
+    position: relative; display: inline-block; padding-bottom: 12px; margin-bottom: 8px;
+  }
+  .signin-card h1::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 3px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  }
+  .signin-card > p.supporting {
+    font-size: 16px; line-height: 24px; color: var(--text-secondary); margin-bottom: 24px;
+  }
+  .signin-perks {
+    text-align: left; list-style: none; margin: 0 0 24px; padding: 0;
+    font-size: 15px; line-height: 1.7; color: var(--navy-text);
+  }
+  .signin-perks li { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .signin-perks li::before { content: '✓'; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; border-radius: 10px; padding: 13px 20px;
+    font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 16px;
+    cursor: pointer; transition: all 0.18s ease; background: white;
+  }
+  .btn-google {
+    border: 1.5px solid var(--border); color: var(--navy-text);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .btn-google:hover { border-color: var(--gold); box-shadow: 0 8px 20px rgba(255,107,53,0.18); transform: translateY(-2px); }
+  .btn-google:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text-secondary); font-size: 13px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .btn-email {
+    border: 1.5px solid var(--border); color: var(--navy-text);
+  }
+  .btn-email:hover { border-color: var(--navy); }
+  .btn-email:focus-visible, .btn-email.active { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+  .email-form { text-align: left; margin-top: 16px; display: none; }
+  .email-form.open { display: block; }
+  .email-form input {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 15px; font-family: inherit; margin-bottom: 10px;
+  }
+  .email-form input:focus { outline: none; border-color: var(--navy); }
+  .btn-navy {
+    border: none; background: var(--navy); color: white; margin-top: 2px;
+  }
+  .btn-navy:hover { background: var(--navy-dark); }
+  .email-form .toggle-mode { font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 12px; }
+  .email-form .toggle-mode a { color: var(--gold); font-weight: 600; text-decoration: none; }
+  .email-form .toggle-mode a:hover { text-decoration: underline; }
+  .email-form .form-error { font-size: 13px; color: var(--red); margin-top: 8px; display: none; }
+
+  .signin-footer { margin-top: 20px; font-size: 14px; color: var(--text-secondary); }
+  .signin-footer a { color: var(--navy); font-weight: 600; text-decoration: underline; }
+
+  /* ── SIGNED-IN: light page, no navy header, just a slim utility row ── */
+  /* ── SIGNED-IN DASHBOARD ── */
 
   .card {
     background: white; border-radius: 12px; padding: 1.5rem;
     margin-bottom: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
-  .card h2 { font-size: 1.05rem; margin-bottom: 1rem; }
+  .card h2 { font-family: 'Poppins', sans-serif; font-size: 1.05rem; margin-bottom: 1rem; }
   .field { margin-bottom: 1rem; }
-  .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--gray-600); margin-bottom: 4px; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
   .field input {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--gray-200); border-radius: 6px;
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
     font-size: 0.92rem; font-family: inherit;
   }
-  .field input:disabled { background: var(--gray-100); color: var(--gray-400); }
+  .field input:disabled { background: var(--gray-100); color: #94a3b8; }
   .save-btn {
     background: var(--navy); color: white; border: none; border-radius: 6px;
-    padding: 10px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    padding: 10px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: 'Poppins', sans-serif;
   }
-  .save-btn:hover { background: var(--navy-light); }
+  .save-btn:hover { background: var(--navy-dark); }
   .save-btn:disabled { opacity: 0.6; cursor: default; }
   .save-msg { font-size: 0.82rem; color: var(--green); margin-left: 10px; }
 
   .order-card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
   .order-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
-  .order-id { font-size: 0.78rem; color: var(--gray-400); letter-spacing: 0.5px; }
-  .order-service { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  .order-id { font-size: 0.78rem; color: var(--text-secondary); letter-spacing: 0.5px; }
+  .order-service { font-size: 1.1rem; font-weight: 700; margin-top: 2px; font-family: 'Poppins', sans-serif; }
   .status-badge {
     display: inline-block; padding: 4px 12px; border-radius: 20px;
     font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
     white-space: nowrap;
   }
-  .status-new { background: var(--gray-200); color: var(--gray-600); }
+  .status-new { background: #e5e7eb; color: var(--text-secondary); }
   .status-in_progress { background: var(--amber-bg); color: var(--amber); }
   .status-completed { background: var(--green-bg); color: var(--green); }
   .status-cancelled { background: var(--red-bg); color: var(--red); }
 
-  .progress-track { height: 6px; background: var(--gray-200); border-radius: 3px; margin: 1rem 0 0.75rem; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.4s ease; }
+  .progress-track { height: 6px; background: #e5e7eb; border-radius: 3px; margin: 1rem 0 0.75rem; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 3px; transition: width 0.4s ease; }
 
-  .order-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: var(--gray-600); }
-  .order-meta strong { color: var(--gray-800); }
+  .order-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+  .order-meta strong { color: var(--navy-text); }
 
-  #emptyState, #loadingState, #errorState { text-align: center; padding: 3rem 1rem; color: var(--gray-400); }
+  #emptyState, #loadingState, #errorState { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
   #errorState { color: var(--red); }
+  /* ── SIGNED-IN DASHBOARD ── */
+  .dash-shell { display: flex; min-height: 100vh; background: var(--gray-100); }
+  .dash-sidebar {
+    width: 240px; flex-shrink: 0; background: var(--navy-dark); color: white;
+    display: flex; flex-direction: column; padding: 1.5rem 1rem;
+  }
+  .dash-logo { display: flex; align-items: center; gap: 10px; padding: 0 0.5rem 1.5rem; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1.15rem; }
+  .dash-logo .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--gold-light), var(--gold)); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--navy-dark); }
+  .dash-nav { list-style: none; flex: 1; }
+  .dash-nav li a {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 2px;
+    color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+    cursor: pointer;
+  }
+  .dash-nav li a:hover { background: rgba(255,255,255,0.06); color: white; }
+  .dash-nav li a.active { background: rgba(255,200,87,0.14); color: var(--gold-light); }
+  .dash-nav .soon-badge { font-size: 0.65rem; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); padding: 2px 7px; border-radius: 10px; }
+  .dash-signout {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    color: rgba(255,255,255,0.65); background: none; border: none; text-align: left;
+    font-family: 'Inter', sans-serif; font-size: 0.88rem; cursor: pointer; border-radius: 8px;
+  }
+  .dash-signout:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  .dash-main { flex: 1; min-width: 0; }
+  .dash-topbar {
+    background: white; border-bottom: 1px solid var(--border); padding: 1rem 2rem;
+    display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  }
+  .dash-avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--navy);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.85rem;
+  }
+  .dash-content { padding: 2rem; }
+
+  .welcome-banner {
+    background: linear-gradient(120deg, var(--navy) 0%, var(--navy-dark) 100%);
+    border-radius: 14px; padding: 1.75rem 2rem; color: white; margin-bottom: 1.75rem;
+    position: relative; overflow: hidden;
+  }
+  .welcome-banner::after {
+    content: ''; position: absolute; top: -60px; right: -60px; width: 220px; height: 220px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(255,200,87,0.18), transparent 70%);
+  }
+  .welcome-banner h1 { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 600; position: relative; }
+  .welcome-banner h1 .wave { display: inline-block; margin-right: 6px; }
+  .welcome-banner h1 .name { color: var(--gold-light); }
+  .welcome-banner p { font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: 4px; position: relative; }
+
+  .dash-grid { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
+  @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } .dash-sidebar { display: none; } }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 1.5rem; }
+  .stat-box { background: white; border-radius: 12px; padding: 1.1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .stat-box .num { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--navy-text); }
+  .stat-box .label { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+
+  .quick-actions { background: white; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .quick-actions h3 { font-family: 'Poppins', sans-serif; font-size: 0.95rem; margin-bottom: 0.9rem; }
+  .quick-actions a, .quick-actions button {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 10px 4px; border: none; background: none; text-align: left;
+    font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--navy-text);
+    text-decoration: none; cursor: pointer; border-bottom: 1px solid var(--gray-100);
+  }
+  .quick-actions a:last-child, .quick-actions button:last-child { border-bottom: none; }
+  .quick-actions a:hover, .quick-actions button:hover { color: var(--navy); }
+
+  .section-heading { font-family: 'Poppins', sans-serif; font-size: 1.05rem; margin: 1.75rem 0 1rem; }
 </style>
 </head>
 <body>
 
-<header>
-  <a href="/" class="brand">Assist</a>
-  <button id="signOutBtn">Sign out</button>
-</header>
+<div id="loadingState">Loading…</div>
 
-<main>
+<!-- SIGNED OUT -->
+<div class="signin-page" id="signedOut" style="display:none;">
+  <div class="signin-card">
+    <div class="signin-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="#0d1b2a" stroke-width="1.6"/><path d="M8 12l2.5 2.5L16 9" stroke="#0d1b2a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1>Welcome back</h1>
+    <p class="supporting">Sign in to save your orders, track progress, and get personalized support.</p>
 
-  <div id="loadingState">Loading…</div>
+    <ul class="signin-perks">
+      <li>Track all your orders in one place</li>
+      <li>Get real-time updates and notifications</li>
+      <li>Faster checkout with saved details</li>
+      <li>Dedicated support from our team</li>
+    </ul>
 
-  <div id="signedOut" style="display:none;">
-    <h1>Your profile</h1>
-    <p>Sign in to save your details, and to see live progress and estimated completion times for your orders.</p>
-    <p class="guest-note">You don't need an account to place an order — this is entirely optional.</p>
-    <button class="google-btn" id="googleSignInBtn">
+    <button class="btn btn-google" id="googleSignInBtn">
       <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
       Continue with Google
     </button>
-  </div>
 
-  <div id="signedIn">
-    <h1>Your profile</h1>
+    <div class="divider">or</div>
 
-    <div class="card">
-      <h2>Account details</h2>
-      <div class="field">
-        <label for="profFullName">Full name</label>
-        <input type="text" id="profFullName" placeholder="Your name">
-      </div>
-      <div class="field">
-        <label for="profEmail">Email</label>
-        <input type="email" id="profEmail" disabled>
-      </div>
-      <div class="field">
-        <label for="profPhone">Phone / WhatsApp</label>
-        <input type="tel" id="profPhone" placeholder="+254 700 000 000">
-      </div>
-      <button class="save-btn" id="saveProfileBtn">Save</button>
-      <span class="save-msg" id="saveMsg" style="display:none;">Saved ✓</span>
+    <button class="btn btn-email" id="emailToggleBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6l9 6 9-6" stroke="#0d1b2a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#0d1b2a" stroke-width="1.6"/></svg>
+      <span id="emailToggleLabel">Sign in with Email</span>
+    </button>
+
+    <div class="email-form" id="emailForm">
+      <input type="email" id="emailInput" placeholder="Email address">
+      <input type="password" id="passwordInput" placeholder="Password">
+      <button class="btn btn-navy" id="emailSubmitBtn" type="button">Sign in</button>
+      <p class="form-error" id="emailFormError"></p>
+      <p class="toggle-mode">
+        <span id="modePrompt">Don't have an account?</span>
+        <a href="#" id="modeSwitchLink">Create account</a>
+      </p>
     </div>
 
-    <h2 style="font-size:1.05rem; margin-bottom:1rem;">Your orders</h2>
-    <div id="ordersList"></div>
-    <div id="emptyState" style="display:none;">You haven't placed any orders yet. <a href="/#order">Start one here</a>.</div>
+    <p class="signin-footer">Prefer not to sign in? <a href="/#order">Continue as guest</a></p>
   </div>
+</div>
 
-  <div id="errorState" style="display:none;"></div>
+<!-- SIGNED IN -->
+<div class="dash-shell" id="appShell" style="display:none;">
+  <aside class="dash-sidebar">
+    <div class="dash-logo"><span class="mark">A</span> Assist</div>
+    <ul class="dash-nav">
+      <li><a class="active" onclick="document.getElementById('signedIn').scrollIntoView({behavior:'smooth'})">Dashboard</a></li>
+      <li><a onclick="document.getElementById('ordersSection').scrollIntoView({behavior:'smooth'})">Orders</a></li>
+      <li><a>Messages <span class="soon-badge">Soon</span></a></li>
+      <li><a>Files <span class="soon-badge">Soon</span></a></li>
+      <li><a onclick="document.getElementById('accountSection').scrollIntoView({behavior:'smooth'})">Settings</a></li>
+      <li><a href="mailto:assist.hello1@gmail.com">Support</a></li>
+    </ul>
+    <button class="dash-signout" id="signOutBtn">&larr; Sign out</button>
+  </aside>
 
-</main>
+  <div class="dash-main">
+    <div class="dash-topbar">
+      <div class="dash-avatar" id="avatarInitial">A</div>
+    </div>
+
+    <main class="dash-content">
+      <div id="signedIn">
+
+        <div class="welcome-banner">
+          <h1><span class="wave">👋</span>Welcome back, <span class="name" id="welcomeName">there</span></h1>
+          <p>Manage your account, orders, and preferences.</p>
+        </div>
+
+        <div class="dash-grid">
+          <div>
+            <div class="card" id="accountSection">
+              <h2>Account details</h2>
+              <div class="field">
+                <label for="profFullName">Full name</label>
+                <input type="text" id="profFullName" placeholder="Your name">
+              </div>
+              <div class="field">
+                <label for="profEmail">Email</label>
+                <input type="email" id="profEmail" disabled>
+              </div>
+              <div class="field">
+                <label for="profPhone">Phone / WhatsApp</label>
+                <input type="tel" id="profPhone" placeholder="+254 700 000 000">
+              </div>
+              <button class="save-btn" id="saveProfileBtn">Save</button>
+              <span class="save-msg" id="saveMsg" style="display:none;">Saved ✓</span>
+            </div>
+
+            <div class="card" style="border:1px solid var(--red);">
+              <h2 style="color:var(--red);">Danger zone</h2>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                Deleting your account removes your profile and sign-in permanently. Your past orders stay on record for us, just no longer linked to an account. This cannot be undone.
+              </p>
+              <button class="save-btn" id="deleteAccountBtn" style="background:var(--red);">Delete my account</button>
+            </div>
+
+            <h2 class="section-heading" id="ordersSection">Your orders</h2>
+            <div id="ordersList"></div>
+            <div id="emptyState" style="display:none;">You haven't placed any orders yet. <a href="/#order">Start one here</a>.</div>
+          </div>
+
+          <div>
+            <div class="stat-grid">
+              <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total orders</div></div>
+              <div class="stat-box"><div class="num" id="statProgress">0</div><div class="label">In progress</div></div>
+              <div class="stat-box"><div class="num" id="statCompleted">0</div><div class="label">Completed</div></div>
+              <div class="stat-box"><div class="num">—</div><div class="label">Files <span class="soon-badge">Soon</span></div></div>
+            </div>
+            <div class="quick-actions">
+              <h3>Quick actions</h3>
+              <a href="/#order">Create new order &rsaquo;</a>
+              <a href="#ordersSection" onclick="document.getElementById('ordersSection').scrollIntoView({behavior:'smooth'})">View orders &rsaquo;</a>
+              <a href="#accountSection" onclick="document.getElementById('accountSection').scrollIntoView({behavior:'smooth'})">Account settings &rsaquo;</a>
+              <a href="mailto:assist.hello1@gmail.com">Help &amp; support &rsaquo;</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="errorState" style="display:none;"></div>
 
 <script>
   const supabaseClient = window.supabase.createClient('__SUPABASE_URL__', '__SUPABASE_ANON_KEY__');
@@ -185,36 +401,43 @@
     `).join('');
   }
 
+  function updateStats(orders) {
+    document.getElementById('statTotal').textContent = orders.length;
+    document.getElementById('statProgress').textContent = orders.filter(o => o.status === 'in_progress').length;
+    document.getElementById('statCompleted').textContent = orders.filter(o => o.status === 'completed').length;
+  }
+
   async function loadOrders(session) {
     try {
-      const res = await fetch('/api/my/orders', {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
+      const res = await fetch('/api/my/orders', { headers: { Authorization: `Bearer ${session.access_token}` } });
       if (!res.ok) throw new Error('Failed to load orders');
       const data = await res.json();
-      renderOrders(data.orders || []);
+      const orders = data.orders || [];
+      renderOrders(orders);
+      updateStats(orders);
     } catch (e) {
       document.getElementById('errorState').style.display = 'block';
       document.getElementById('errorState').textContent = 'Could not load your orders. Please refresh the page.';
     }
   }
 
-  // Loads the real profile row (from the profiles table, created
-  // automatically by the database trigger the moment this user first
-  // signed in) and fills the editable fields with it.
   async function loadProfile(session) {
+    let name = '';
     try {
-      const res = await fetch('/api/my/profile', {
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
+      const res = await fetch('/api/my/profile', { headers: { Authorization: `Bearer ${session.access_token}` } });
       const data = await res.json();
-      document.getElementById('profFullName').value = data.profile?.full_name || session.user.user_metadata?.full_name || '';
+      name = data.profile?.full_name || session.user.user_metadata?.full_name || '';
+      document.getElementById('profFullName').value = name;
       document.getElementById('profEmail').value = data.profile?.email || session.user.email || '';
       document.getElementById('profPhone').value = data.profile?.phone || '';
     } catch (e) {
-      document.getElementById('profFullName').value = session.user.user_metadata?.full_name || '';
+      name = session.user.user_metadata?.full_name || '';
+      document.getElementById('profFullName').value = name;
       document.getElementById('profEmail').value = session.user.email || '';
     }
+    const firstName = (name || session.user.email || 'there').split(' ')[0];
+    document.getElementById('welcomeName').textContent = firstName;
+    document.getElementById('avatarInitial').textContent = firstName.charAt(0).toUpperCase();
   }
 
   async function saveProfile(session) {
@@ -246,15 +469,13 @@
     const { data: { session } } = await supabaseClient.auth.getSession();
 
     if (!session) {
-      document.getElementById('signedOut').style.display = 'block';
-      document.getElementById('signedIn').style.display = 'none';
-      document.getElementById('signOutBtn').style.display = 'none';
+      document.getElementById('signedOut').style.display = 'flex';
+      document.getElementById('appShell').style.display = 'none';
       return;
     }
 
     document.getElementById('signedOut').style.display = 'none';
-    document.getElementById('signedIn').style.display = 'block';
-    document.getElementById('signOutBtn').style.display = 'inline-block';
+    document.getElementById('appShell').style.display = 'flex';
     loadProfile(session);
     loadOrders(session);
   }
@@ -262,19 +483,114 @@
   document.getElementById('googleSignInBtn').addEventListener('click', async () => {
     const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/profile' }
+      options: { redirectTo: window.location.origin + '/' }
     });
     if (error) alert('Sign-in failed: ' + error.message);
   });
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {
     await supabaseClient.auth.signOut();
-    render();
+    window.location.href = '/';
   });
 
   document.getElementById('saveProfileBtn').addEventListener('click', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) saveProfile(session);
+  });
+
+  document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+    const confirmation = prompt('This permanently deletes your account and cannot be undone.\n\nType DELETE to confirm:');
+    if (confirmation !== 'DELETE') return;
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) return;
+
+    const btn = document.getElementById('deleteAccountBtn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+
+    try {
+      const res = await fetch('/api/my/account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+      await supabaseClient.auth.signOut();
+      window.location.href = '/';
+    } catch (e) {
+      alert('Could not delete your account: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Delete my account';
+    }
+  });
+
+  // ── Email sign-in / sign-up toggle ───────────────────────────────────
+  let emailMode = 'signin'; // or 'signup'
+
+  document.getElementById('emailToggleBtn').addEventListener('click', () => {
+    const form = document.getElementById('emailForm');
+    form.classList.toggle('open');
+    document.getElementById('emailToggleBtn').classList.toggle('active');
+  });
+
+  document.getElementById('modeSwitchLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    emailMode = emailMode === 'signin' ? 'signup' : 'signin';
+    document.getElementById('emailSubmitBtn').textContent = emailMode === 'signin' ? 'Sign in' : 'Create account';
+    document.getElementById('emailToggleLabel').textContent = emailMode === 'signin' ? 'Sign in with Email' : 'Sign up with Email';
+    document.getElementById('modePrompt').textContent = emailMode === 'signin' ? "Don't have an account?" : 'Already have an account?';
+    document.getElementById('modeSwitchLink').textContent = emailMode === 'signin' ? 'Create account' : 'Sign in';
+    document.getElementById('emailFormError').style.display = 'none';
+  });
+
+  document.getElementById('emailSubmitBtn').addEventListener('click', async () => {
+    const email = document.getElementById('emailInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
+    const errEl = document.getElementById('emailFormError');
+    errEl.style.display = 'none';
+
+    if (!email || !password) {
+      errEl.textContent = 'Enter both an email and a password.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('emailSubmitBtn');
+    btn.disabled = true;
+    try {
+      const { error } = emailMode === 'signin'
+        ? await supabaseClient.auth.signInWithPassword({ email, password })
+        : await supabaseClient.auth.signUp({
+            email, password,
+            // After they click the confirmation link in their email, Supabase
+            // sends them here — the ?newAccount=1 flag tells the homepage to
+            // scroll straight to the order form once they land, completing
+            // the "signup -> profile created -> Place an Order" flow.
+            options: { emailRedirectTo: window.location.origin + '/?newAccount=1' }
+          });
+
+      if (error) {
+        errEl.textContent = error.message;
+        errEl.style.display = 'block';
+      } else if (emailMode === 'signup') {
+        // Supabase requires email confirmation before a session exists —
+        // there's no way to skip straight to signed-in here without
+        // disabling "Confirm email" in Supabase's Auth settings. Once they
+        // click the link in that email, they land signed-in on the order
+        // form automatically (see emailRedirectTo above).
+        errEl.style.color = 'var(--green, #28a745)';
+        errEl.textContent = "Account created — check your email to confirm, then you'll be signed in automatically.";
+        errEl.style.display = 'block';
+      } else {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      errEl.textContent = 'Something went wrong. Please try again.';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   supabaseClient.auth.onAuthStateChange(() => render());

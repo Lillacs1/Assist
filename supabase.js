@@ -49,6 +49,15 @@ async function updateProfile(userId, fields) {
   return data;
 }
 
+// Permanently deletes a client's account. The profiles row is removed
+// automatically via 'on delete cascade' (schema.sql). Their past orders are
+// NOT deleted — client_id is set to null via 'on delete set null', so your
+// order history/records stay intact, just unlinked from a now-deleted user.
+async function deleteAccount(userId) {
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  if (error) throw error;
+}
+
 async function createOrder(order) {
   const { error } = await supabaseAdmin.from('orders').insert(order);
   if (error) throw error;
@@ -97,6 +106,16 @@ async function listOrders({ status, search, limit = 50, offset = 0 }) {
   return { orders: data, total: count || 0 };
 }
 
+async function getStatusHistory(orderId) {
+  const { data, error } = await supabaseAdmin
+    .from('order_status_history')
+    .select('status, changed_at')
+    .eq('order_id', orderId)
+    .order('changed_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
 async function getStats() {
   const countByStatus = async (status) => {
     let query = supabaseAdmin.from('orders').select('*', { count: 'exact', head: true });
@@ -109,6 +128,8 @@ async function getStats() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
 
   const { count: today } = await supabaseAdmin
     .from('orders')
@@ -134,15 +155,59 @@ async function getStats() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // "Revenue" here means quotes you've actually entered against completed
+  // orders — since payment itself happens outside the platform (Remitly),
+  // this is a running total of quoted_price for completed work, not a
+  // record of money actually received.
+  const parseAmount = (s) => {
+    if (!s) return 0;
+    const n = parseFloat(String(s).replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
+  const { data: completedRows, error: revErr } = await supabaseAdmin
+    .from('orders')
+    .select('quoted_price, created_at')
+    .eq('status', 'completed');
+  if (revErr) throw revErr;
+  const revenue = (completedRows || []).reduce((sum, o) => sum + parseAmount(o.quoted_price), 0);
+
+  // Trend deltas: this-30-days vs the-30-days-before-that, for the
+  // "↑12% vs last 30 days" style labels in the stats cards.
+  const countInRange = async (from, to, statusFilter) => {
+    let q = supabaseAdmin.from('orders').select('*', { count: 'exact', head: true })
+      .gte('created_at', from.toISOString());
+    if (to) q = q.lt('created_at', to.toISOString());
+    if (statusFilter) q = q.eq('status', statusFilter);
+    const { count, error } = await q;
+    if (error) throw error;
+    return count || 0;
+  };
+  const totalLast30 = await countInRange(thirtyDaysAgo, null);
+  const totalPrev30 = await countInRange(sixtyDaysAgo, thirtyDaysAgo);
+  const completedLast30 = await countInRange(thirtyDaysAgo, null, 'completed');
+  const completedPrev30 = await countInRange(sixtyDaysAgo, thirtyDaysAgo, 'completed');
+  const pct = (curr, prev) => prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+
+  const total = await countByStatus();
+  const completed = await countByStatus('completed');
+  const cancelled = await countByStatus('cancelled');
+  const completion_rate = total > 0 ? Math.round((completed / (total - cancelled || 1)) * 100) : 0;
+
   return {
-    total: await countByStatus(),
+    total,
     new: await countByStatus('new'),
     in_progress: await countByStatus('in_progress'),
-    completed: await countByStatus('completed'),
-    cancelled: await countByStatus('cancelled'),
+    completed,
+    cancelled,
     today: today || 0,
     this_week: this_week || 0,
     by_service,
+    revenue,
+    completion_rate,
+    trend: {
+      total_pct: pct(totalLast30, totalPrev30),
+      completed_pct: pct(completedLast30, completedPrev30),
+    },
   };
 }
 
@@ -167,11 +232,13 @@ module.exports = {
   getUserFromToken,
   getProfile,
   updateProfile,
+  deleteAccount,
   createOrder,
   getOrderById,
   getOrdersForClient,
   listOrders,
   getStats,
+  getStatusHistory,
   updateOrder,
   deleteOrder,
 };

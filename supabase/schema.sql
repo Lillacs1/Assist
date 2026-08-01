@@ -83,6 +83,23 @@ where p.id is null;
 
 
 -- ── ORDERS ──────────────────────────────────────────────────────────────
+-- ── ROLE ACCESS (GRANTS) ────────────────────────────────────────────────
+-- Supabase no longer auto-grants table access to anon/authenticated/
+-- service_role on new projects — that's now opt-in. Without these lines,
+-- EVERY role, including service_role, gets "permission denied for table X"
+-- regardless of RLS policies or which API key you use. Grants control
+-- *whether* a role can touch a table at all; RLS (above/below) controls
+-- *which rows* it can see once it's allowed in.
+grant usage on schema public to anon, authenticated, service_role;
+
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.profiles to service_role;
+
+grant select, insert, update, delete on public.orders to service_role;
+-- Deliberately no grant to anon/authenticated on orders — clients never
+-- query it directly; they go through the backend's service_role client.
+
+
 create table if not exists public.orders (
   id                    text primary key,
   created_at            timestamptz not null default now(),
@@ -121,3 +138,45 @@ drop trigger if exists orders_set_updated_at on public.orders;
 create trigger orders_set_updated_at
   before update on public.orders
   for each row execute function public.set_updated_at();
+
+
+-- ── STATUS HISTORY ──────────────────────────────────────────────────────
+-- Powers the "Status Timeline" in the admin order panel. orders.status only
+-- ever holds the *current* value — this table keeps every value it's ever
+-- had, with a timestamp, populated automatically (never written to by hand).
+create table if not exists public.order_status_history (
+  id          bigint generated always as identity primary key,
+  order_id    text not null references public.orders(id) on delete cascade,
+  status      text not null,
+  changed_at  timestamptz not null default now()
+);
+
+create index if not exists order_status_history_order_id_idx
+  on public.order_status_history (order_id, changed_at);
+
+grant select, insert on public.order_status_history to service_role;
+
+create or replace function public.log_order_status_change()
+returns trigger as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into public.order_status_history (order_id, status) values (new.id, new.status);
+  elsif tg_op = 'UPDATE' and new.status is distinct from old.status then
+    insert into public.order_status_history (order_id, status) values (new.id, new.status);
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists orders_log_status_change on public.orders;
+create trigger orders_log_status_change
+  after insert or update on public.orders
+  for each row execute function public.log_order_status_change();
+
+-- Backfill: give existing orders at least one history entry (their current
+-- status), so the timeline isn't empty for orders placed before this table existed.
+insert into public.order_status_history (order_id, status, changed_at)
+select o.id, o.status, o.created_at
+from public.orders o
+left join public.order_status_history h on h.order_id = o.id
+where h.order_id is null;
